@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <title>Web Renderer Demo</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f1f3ef;
+      --panel: #fbfcf9;
+      --panel-2: #eef1ec;
+      --ink: #131713;
+      --muted: #5f675f;
+      --faint: #899189;
+      --line: #cfd5ce;
+      --line-strong: #aab3aa;
+      --accent: #087943;
+      --accent-soft: #d8f2e3;
+      --signal: #0bba68;
+      --danger: #be3434;
+      --warning: #a16309;
+      --code-bg: #111512;
+      --code-ink: #e5eee8;
+      --shadow: 0 18px 50px rgba(19, 31, 23, .10);
+      --radius-lg: 18px;
+      --radius-md: 11px;
+      --radius-sm: 6px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d100e;
+        --panel: #151916;
+        --panel-2: #1b211d;
+        --ink: #edf3ee;
+        --muted: #a8b2aa;
+        --faint: #778079;
+        --line: #303831;
+        --line-strong: #48534a;
+        --accent: #36dc87;
+        --accent-soft: #163927;
+        --signal: #43e391;
+        --danger: #ff7f7a;
+        --warning: #f0b85e;
+        --code-bg: #090c0a;
+        --code-ink: #e9f4ec;
+        --shadow: 0 22px 60px rgba(0, 0, 0, .35);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px),
+        var(--bg);
+      background-size: 32px 32px;
+      color: var(--ink);
+      font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+      font-size: 15px;
+    }
+
+    button, select, textarea { font: inherit; }
+    button, select { color: inherit; }
+    button { cursor: pointer; }
+    svg { display: block; }
+
+    .app {
+      width: min(1600px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .workbench {
+      min-height: calc(100vh - 36px);
+      background: var(--panel);
+      border: 1px solid var(--line-strong);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .utility {
+      min-height: 62px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: color-mix(in srgb, var(--panel) 94%, transparent);
+    }
+
+    .utility-copy { min-width: 0; }
+    .utility-title {
+      margin: 0;
+      font-size: clamp(18px, 2vw, 24px);
+      line-height: 1.2;
+      letter-spacing: -.025em;
+      font-weight: 700;
+    }
+    .utility-subtitle {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .tag, .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 9px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .status::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      margin-right: 7px;
+      background: var(--faint);
+    }
+    .status.valid { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+    .status.valid::before { background: var(--signal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 15%, transparent); }
+    .status.invalid { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+    .status.invalid::before { background: var(--danger); }
+
+    .mobile-tabs { display: none; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(360px, .92fr) minmax(430px, 1.08fr);
+      height: calc(100vh - 99px);
+      min-height: 620px;
+    }
+
+    .pane {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .editor-pane { border-right: 1px solid var(--line); overflow: hidden; }
+
+    .pane-tools {
+      min-height: 54px;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--panel-2);
+    }
+
+    .tool-group { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+    .tool-label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .control, .icon-button {
+      min-height: 34px;
+      border: 1px solid var(--line-strong);
+      background: var(--panel);
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 700;
+      transition: background .16s ease, border-color .16s ease, color .16s ease;
+    }
+    .control:hover, .icon-button:hover { border-color: var(--accent); color: var(--accent); }
+    .control.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+    .control.primary:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .control:focus-visible, .icon-button:focus-visible, select:focus-visible, textarea:focus-visible, .screen-tab:focus-visible, .catalog-chip:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
+      outline-offset: 2px;
+    }
+
+    select.control { appearance: auto; min-width: 148px; }
+
+    .editor-wrap {
+      position: relative;
+      flex: 1 1 0;
+      height: 0;
+      min-height: 0;
+      background: var(--code-bg);
+    }
+
+    #jsonEditor {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      resize: none;
+      border: 0;
+      outline: 0;
+      padding: 18px 20px 72px;
+      background: transparent;
+      color: var(--code-ink);
+      caret-color: var(--signal);
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 12px;
+      line-height: 1.58;
+      tab-size: 2;
+      white-space: pre;
+      overflow: auto;
+    }
+    #jsonEditor::selection { background: rgba(67, 227, 145, .26); }
+
+    .editor-footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      min-height: 47px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 14px;
+      background: color-mix(in srgb, var(--code-bg) 92%, transparent);
+      border-top: 1px solid rgba(255,255,255,.10);
+      color: #a8b4ab;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+    }
+    #errorText { color: #ff938d; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .preview-pane { background: var(--bg); }
+    .preview-shell {
+      flex: 1;
+      min-height: 0;
+      padding: clamp(18px, 3vw, 42px);
+      display: grid;
+      place-items: start center;
+      overflow: auto;
+    }
+
+    .device {
+      width: min(430px, 100%);
+      min-height: 720px;
+      background: var(--program-bg, #0d110e);
+      color: var(--program-text, #f5f8f5);
+      border: 1px solid color-mix(in srgb, var(--program-accent, #3ee18b) 36%, #465047);
+      border-radius: 24px;
+      box-shadow: 0 28px 70px rgba(0, 0, 0, .22);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .device-bar {
+      min-height: 38px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+      color: rgba(255,255,255,.62);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+    }
+    .device-dots { display: flex; gap: 5px; }
+    .device-dots i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .55; }
+
+    .program-head { padding: 20px 20px 15px; }
+    .program-kicker {
+      margin: 0 0 5px;
+      color: var(--program-accent, #3ee18b);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .program-title { margin: 0; font-size: 27px; line-height: 1.05; letter-spacing: -.035em; }
+    .program-meta { margin: 7px 0 0; color: rgba(255,255,255,.58); font-size: 11px; }
+
+    .program-body {
+      flex: 1;
+      padding: 0 14px 96px;
+    }
+
+    .program-nav {
+      position: sticky;
+      bottom: 0;
+      margin-top: auto;
+      min-height: 70px;
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+      background: color-mix(in srgb, var(--program-bg, #0d110e) 94%, transparent);
+      border-top: 1px solid rgba(255,255,255,.12);
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: 4px;
+      z-index: 4;
+    }
+    .screen-tab {
+      border: 0;
+      background: transparent;
+      color: rgba(255,255,255,.48);
+      padding: 6px 2px;
+      font-size: 9px;
+      font-weight: 700;
+      min-width: 0;
+    }
+    .screen-tab .tab-mark { display: block; width: 18px; height: 3px; margin: 0 auto 7px; background: transparent; }
+    .screen-tab.active { color: var(--program-accent, #3ee18b); }
+    .screen-tab.active .tab-mark { background: currentColor; }
+
+    .block {
+      margin: 0 0 12px;
+      background: rgba(255,255,255,.055);
+      border: 1px solid rgba(255,255,255,.105);
+      border-radius: 13px;
+      overflow: hidden;
+    }
+    .block-inner { padding: 15px; }
+    .block-label {
+      color: var(--program-accent, #3ee18b);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: .04em;
+    }
+    .block h2, .block h3 { margin: 0; letter-spacing: -.02em; }
+    .block h2 { font-size: 21px; }
+    .block h3 { font-size: 15px; }
+    .block p { margin: 8px 0 0; color: rgba(255,255,255,.72); font-size: 12px; line-height: 1.55; }
+    .block strong { color: #fff; }
+
+    .rich-text { border: 0; background: transparent; border-radius: 0; }
+    .rich-text .block-inner { padding: 6px 6px 13px; }
+    .rich-text h1 { font-size: 30px; line-height: 1.08; letter-spacing: -.045em; margin: 0; }
+    .rich-text h2 { margin-top: 10px; }
+    .rich-text ul { padding-left: 18px; color: rgba(255,255,255,.72); font-size: 12px; line-height: 1.6; }
+
+    .channel-head, .sponsor-head, .raffle-head, .pass-head, .hunt-head, .venue-row, .schedule-row, .announcement, .route-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+    }
+    .icon-box {
+      width: 32px;
+      height: 32px;
+      flex: 0 0 32px;
+      display: grid;
+      place-items: center;
+      color: var(--program-accent, #3ee18b);
+      background: color-mix(in srgb, var(--program-accent, #3ee18b) 15%, transparent);
+      border-radius: 8px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .verified {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 6px;
+      background: color-mix(in srgb, var(--program-accent, #3ee18b) 15%, transparent);
+      color: var(--program-accent, #3ee18b);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 8px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .announcement { padding: 12px 0; border-top: 1px solid rgba(255,255,255,.09); }
+    .announcement:first-of-type { margin-top: 12px; }
+    .announcement time { width: 42px; flex: 0 0 42px; color: var(--program-accent, #3ee18b); font-family: "IBM Plex Mono", monospace; font-size: 9px; }
+    .announcement p { margin: 0; color: rgba(255,255,255,.82); line-height: 1.45; }
+
+    .schedule-row { align-items: baseline; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.09); }
+    .schedule-row:first-child { border-top: 0; }
+    .schedule-time { width: 48px; flex: 0 0 48px; color: var(--program-accent, #3ee18b); font: 600 10px/1.2 "IBM Plex Mono", monospace; }
+    .schedule-info { flex: 1; min-width: 0; }
+    .schedule-info strong { display: block; font-size: 12px; }
+    .schedule-info span { color: rgba(255,255,255,.5); font-size: 10px; }
+
+    .density-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .density-cell { padding: 10px 8px; background: rgba(255,255,255,.055); border-top: 2px solid var(--heat, #43e391); }
+    .density-cell b { display: block; font-size: 16px; }
+    .density-cell span { color: rgba(255,255,255,.56); font-size: 9px; line-height: 1.2; display: block; margin-top: 3px; }
+
+    .media-art { aspect-ratio: 16/9; position: relative; overflow: hidden; background: #111c16; }
+    .media-art svg { width: 100%; height: 100%; }
+    .media-caption { padding: 10px 13px; color: rgba(255,255,255,.6); font-size: 10px; }
+
+    .pin-list { display: grid; gap: 8px; margin-top: 12px; }
+    .pin-row { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 8px; padding: 9px; background: rgba(255,255,255,.05); }
+    .pin-dot { width: 10px; height: 10px; margin-left: 8px; border-radius: 50%; background: var(--program-accent, #3ee18b); box-shadow: 0 0 0 5px color-mix(in srgb, var(--program-accent, #3ee18b) 13%, transparent); }
+    .pin-row b { font-size: 11px; }
+    .pin-row small { color: rgba(255,255,255,.46); font: 9px "IBM Plex Mono", monospace; }
+    .fallback-note { margin-top: 10px; color: rgba(255,255,255,.45); font: 9px/1.4 "IBM Plex Mono", monospace; }
+
+    .venue-list { margin-top: 8px; }
+    .venue-row { padding: 11px 0; border-top: 1px solid rgba(255,255,255,.09); }
+    .venue-row:first-child { border-top: 0; }
+    .venue-row .venue-main { flex: 1; }
+    .venue-row b { display: block; font-size: 12px; }
+    .venue-row small { color: rgba(255,255,255,.52); font-size: 10px; }
+    .state { color: var(--program-accent, #3ee18b); font: 9px "IBM Plex Mono", monospace; }
+    .state.closed { color: #ff927c; }
+
+    .route { margin-top: 10px; }
+    .route-step { position: relative; padding: 0 0 15px; }
+    .route-step:last-child { padding-bottom: 0; }
+    .route-step::before { content: ""; position: absolute; left: 9px; top: 18px; bottom: -2px; width: 1px; background: rgba(255,255,255,.16); }
+    .route-step:last-child::before { display: none; }
+    .route-node { width: 19px; height: 19px; flex: 0 0 19px; border: 2px solid var(--program-accent, #3ee18b); border-radius: 50%; background: var(--program-bg, #0d110e); }
+    .route-step b { display: block; font-size: 11px; }
+    .route-step small { color: rgba(255,255,255,.5); font-size: 9px; }
+
+    .sponsor { border-color: color-mix(in srgb, var(--program-primary, #ffd84a) 52%, transparent); }
+    .sponsor-mark { min-width: 44px; font: 700 17px "IBM Plex Mono", monospace; color: var(--program-primary, #ffd84a); }
+    .sponsor-copy { flex: 1; }
+    .sponsor-copy small, .raffle small { color: rgba(255,255,255,.5); font-size: 9px; }
+    .offer { margin-top: 12px; padding: 10px; background: color-mix(in srgb, var(--program-primary, #ffd84a) 11%, transparent); color: #fff; font-size: 11px; }
+
+    .raffle-live { color: #ff806f; font: 700 9px "IBM Plex Mono", monospace; }
+    .raffle-count { margin-left: auto; color: rgba(255,255,255,.56); font: 9px "IBM Plex Mono", monospace; }
+    .read-only-action { margin-top: 12px; width: 100%; border: 1px solid rgba(255,255,255,.18); padding: 9px; background: transparent; color: rgba(255,255,255,.6); font: 600 9px "IBM Plex Mono", monospace; text-align: center; }
+
+    .hunt-progress { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin: 13px 0; }
+    .hunt-progress i { height: 5px; background: rgba(255,255,255,.13); }
+    .hunt-progress i.done { background: var(--program-accent, #3ee18b); }
+    .hunt-stop { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.08); font-size: 10px; }
+    .hunt-stop .stamp { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.45); font: 8px "IBM Plex Mono", monospace; }
+    .hunt-stop.done .stamp { background: var(--program-accent, #3ee18b); color: #08120c; border-color: transparent; }
+
+    .pass { background: color-mix(in srgb, var(--program-accent, #3ee18b) 12%, #111512); }
+    .pass-card { padding: 17px; position: relative; overflow: hidden; }
+    .pass-card::after { content: ""; position: absolute; width: 150px; height: 150px; border: 22px solid color-mix(in srgb, var(--program-accent, #3ee18b) 15%, transparent); border-radius: 50%; right: -75px; bottom: -85px; }
+    .pass-event { font-size: 20px; margin: 7px 0 18px; }
+    .pass-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; position: relative; z-index: 1; }
+    .pass-fields small { display: block; color: rgba(255,255,255,.48); font: 8px "IBM Plex Mono", monospace; }
+    .pass-fields b { font-size: 11px; }
+
+    .moments-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 12px; }
+    .moment { aspect-ratio: 1; min-width: 0; padding: 10px; display: flex; flex-direction: column; justify-content: flex-end; position: relative; overflow: hidden; background: var(--moment, #2d7c57); }
+    .moment::before { content: ""; position: absolute; width: 85px; height: 85px; border: 16px solid rgba(255,255,255,.12); border-radius: 50%; right: -22px; top: -22px; }
+    .moment b, .moment small { position: relative; z-index: 1; }
+    .moment b { font-size: 10px; }
+    .moment small { color: rgba(255,255,255,.72); font-size: 8px; margin-top: 3px; }
+
+    .empty-state, .error-card {
+      padding: 28px 20px;
+      border: 1px dashed rgba(255,255,255,.22);
+      color: rgba(255,255,255,.62);
+      text-align: center;
+      font-size: 12px;
+    }
+    .error-card { border-color: rgba(255,120,116,.45); color: #ffaaa6; text-align: left; white-space: pre-wrap; font-family: "IBM Plex Mono", monospace; }
+
+    .catalog {
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .catalog details { padding: 8px 10px 10px; }
+    .catalog summary { display: none; }
+    .catalog-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+    .catalog-chip {
+      min-width: 0;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      padding: 8px;
+      text-align: left;
+      color: var(--ink);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 9px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .catalog-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translate(-50%, 14px);
+      padding: 9px 12px;
+      background: var(--ink);
+      color: var(--panel);
+      border: 1px solid var(--line-strong);
+      box-shadow: var(--shadow);
+      font-size: 11px;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .16s ease, transform .16s ease;
+      z-index: 20;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 900px) {
+      .app { padding: 0; }
+      .workbench { min-height: 100vh; border: 0; }
+      .utility { align-items: flex-start; }
+      .utility-subtitle { display: none; }
+      .meta .tag { display: none; }
+      .mobile-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+      }
+      .mobile-tabs button {
+        border: 0;
+        border-bottom: 3px solid transparent;
+        padding: 12px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .mobile-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+      .workspace { display: block; height: auto; min-height: 0; }
+      .pane { display: none; min-height: calc(100vh - 124px); }
+      .pane.mobile-active { display: flex; }
+      .editor-pane { border-right: 0; overflow: visible; }
+      .editor-wrap { height: auto; min-height: calc(100vh - 220px); }
+      #jsonEditor { min-height: calc(100vh - 220px); }
+      .preview-shell { padding: 14px 8px 26px; overflow: visible; }
+      .device { min-height: calc(100vh - 168px); border-radius: 18px; }
+      .catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 520px) {
+      .utility { padding: 10px 12px; }
+      .utility-title { font-size: 17px; }
+      .pane-tools { align-items: flex-start; flex-direction: column; }
+      .pane-tools .tool-group { width: 100%; }
+      select.control { flex: 1; min-width: 0; }
+      .preview-pane .pane-tools { flex-direction: row; align-items: center; }
+      .density-grid { grid-template-columns: 1fr; }
+      .moments-grid { gap: 5px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="workbench" aria-label="Mini-program JSON renderer">
+      <header class="utility">
+        <div class="utility-copy">
+          <h1 class="utility-title">JSON in. Web UI out.</h1>
+          <p class="utility-subtitle">Edit the document, inspect the browser preview, and test all 13 portable block types.</p>
+        </div>
+        <div class="meta">
+          <span class="tag">SCHEMA v1 · 13 BLOCKS</span>
+          <span id="status" class="status valid" role="status">Valid document</span>
+        </div>
+      </header>
+
+      <nav class="mobile-tabs" aria-label="Workspace view">
+        <button type="button" data-mobile-pane="editor">Editor</button>
+        <button type="button" class="active" data-mobile-pane="preview">Preview</button>
+      </nav>
+
+      <div class="workspace">
+        <section class="pane editor-pane" data-pane="editor" aria-label="JSON editor">
+          <div class="pane-tools">
+            <div class="tool-group">
+              <span class="tool-label">Example</span>
+              <select id="exampleSelect" class="control" aria-label="Choose an example document">
+                <option value="full">Full event · 13 blocks</option>
+                <option value="connector">Connector result</option>
+                <option value="minimal">Minimal document</option>
+              </select>
+            </div>
+            <div class="tool-group">
+              <button id="formatBtn" class="control" type="button">Format</button>
+              <button id="copyBtn" class="control" type="button">Copy</button>
+              <button id="downloadBtn" class="control" type="button">Download</button>
+            </div>
+          </div>
+
+          <div class="editor-wrap">
+            <textarea id="jsonEditor" spellcheck="false" aria-label="Mini-program JSON"></textarea>
+            <div class="editor-footer">
+              <span id="cursorText">Ln 1, Col 1</span>
+              <span id="errorText">Live preview enabled</span>
+            </div>
+          </div>
+
+          <aside class="catalog" aria-label="Block catalog">
+            <details open>
+              <summary>Insert a block into the active screen <span>click a type</span></summary>
+              <div id="catalogGrid" class="catalog-grid"></div>
+            </details>
+          </aside>
+        </section>
+
+        <section class="pane preview-pane mobile-active" data-pane="preview" aria-label="Rendered preview">
+          <div class="pane-tools">
+            <div class="tool-group">
+              <span class="tool-label">Renderer</span>
+              <span id="blockCount" class="tag">0 blocks</span>
+            </div>
+            <div class="tool-group">
+              <button id="resetBtn" class="control" type="button">Reset example</button>
+            </div>
+          </div>
+          <div class="preview-shell">
+            <article id="device" class="device" aria-live="polite"></article>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+
+  <script>
+    const BLOCK_TYPES = [
+      "RichTextBlock", "MediaBlock", "ScheduleBlock", "MapBlock",
+      "CrowdDensityBlock", "VenueListBlock", "RouteBlock", "SponsorBlock",
+      "RaffleBlock", "HuntBlock", "ChannelBlock", "PassBlock", "MomentsBlock"
+    ];
+
+    const blockDefaults = {
+      RichTextBlock: { type: "RichTextBlock", props: { markdown: "## New section\nAdd a useful note here." } },
+      MediaBlock: { type: "MediaBlock", props: { imageURL: "", caption: "A bundled visual or host-provided asset" } },
+      ScheduleBlock: { type: "ScheduleBlock", props: { title: "Schedule", items: [{ time: "18:00", title: "Opening session", stage: "Main" }] } },
+      MapBlock: { type: "MapBlock", props: { title: "Venue locations", pins: [{ label: "Main entrance", lat: 6.4281, lng: 3.4219 }] } },
+      CrowdDensityBlock: { type: "CrowdDensityBlock", props: { title: "Crowd now", zones: [{ name: "Main", count: 42, capacity: 100 }] } },
+      VenueListBlock: { type: "VenueListBlock", props: { title: "Venues", venues: [{ name: "Main hall", floor: "Ground", hours: "18:00–23:00", isOpen: true }] } },
+      RouteBlock: { type: "RouteBlock", props: { title: "Walk to the main hall", steps: [{ instruction: "Start at the entrance", detail: "0 min" }, { instruction: "Continue straight", detail: "2 min" }] } },
+      SponsorBlock: { type: "SponsorBlock", props: { name: "Example partner", tier: "Partner", offer: "Sample offer", initials: "EP" } },
+      RaffleBlock: { type: "RaffleBlock", props: { title: "Sample giveaway", prize: "Two guest passes", entries: 128, isLive: true } },
+      HuntBlock: { type: "HuntBlock", props: { id: "sample-hunt", title: "Venue trail", subtitle: "Collect three sample stops", requiredCount: 3, completedCount: 1, stops: [{ title: "Entrance", completed: true }, { title: "Main stage", completed: false }, { title: "Food court", completed: false }] } },
+      ChannelBlock: { type: "ChannelBlock", props: { channelId: "official", title: "Updates", previewCount: 3 } },
+      PassBlock: { type: "PassBlock", props: { eventName: "Sample event", title: "Your pass" } },
+      MomentsBlock: { type: "MomentsBlock", props: { title: "Crew moments" } }
+    };
+
+    const fullExample = {
+      id: "signal-field-day-demo",
+      slug: "signal-field-day",
+      version: 1,
+      sample: true,
+      theme: { primary: "#ffd84a", accent: "#43e391", background: "#0b100d", text: "#f5f8f5" },
+      runtime: {
+        channels: {
+          official: [
+            { time: "18:42", text: "Gate B is open. Use the east entrance for the shortest line.", verified: true },
+            { time: "18:27", text: "The opening set now starts at 19:15 on the Main stage.", verified: true },
+            { time: "18:05", text: "Water refill stations are active beside both venue halls.", verified: true }
+          ]
+        },
+        passes: [
+          { eventName: "Signal Field Day", holder: "DEMO ATTENDEE", tier: "Resident", code: "SAMPLE PASS", verified: true }
+        ],
+        moments: [
+          { sender: "maya", caption: "Found the crew", color: "#265f45" },
+          { sender: "sol", caption: "Main stage", color: "#864f32" },
+          { sender: "ken", caption: "Gate lights", color: "#2e587c" },
+          { sender: "ria", caption: "Last set", color: "#694d77" }
+        ]
+      },
+      tabBar: [
+        { screenId: "live", title: "Live" },
+        { screenId: "venues", title: "Venues" },
+        { screenId: "map", title: "Map" },
+        { screenId: "pass", title: "Pass" },
+        { screenId: "moments", title: "Moments" }
+      ],
+      screens: [
+        {
+          id: "live",
+          title: "Live",
+          blocks: [
+            { type: "RichTextBlock", props: { markdown: "# Signal Field Day\nA sample mini-program built from portable UI blocks — designed to stay useful when the signal gets crowded." } },
+            { type: "ChannelBlock", props: { channelId: "official", title: "Organizer updates", previewCount: 3 } },
+            { type: "ScheduleBlock", props: { title: "Tonight", items: [
+              { time: "19:15", title: "Opening set", stage: "Main" },
+              { time: "20:30", title: "Community showcase", stage: "Hall B" },
+              { time: "22:00", title: "Closing set", stage: "Main" }
+            ] } },
+            { type: "CrowdDensityBlock", props: { title: "Crowd now", zones: [
+              { name: "Main", count: 342, capacity: 400 },
+              { name: "Hall B", count: 181, capacity: 300 },
+              { name: "Food court", count: 41, capacity: 200 }
+            ] } },
+            { type: "SponsorBlock", props: { name: "Northline", initials: "NL", tier: "Headline partner", offer: "Show your event pass for a sample merch patch." } },
+            { type: "RaffleBlock", props: { title: "Check in for prizes", prize: "Two sample upgrades", entries: 247, isLive: true } }
+          ]
+        },
+        {
+          id: "venues",
+          title: "Venues",
+          blocks: [
+            { type: "VenueListBlock", props: { title: "Around the grounds", venues: [
+              { name: "Main stage", floor: "Field", hours: "18:00–00:00", isOpen: true },
+              { name: "Hall B", floor: "Level 1", hours: "18:00–23:00", isOpen: true },
+              { name: "Studio room", floor: "Level 2", hours: "20:00–22:00", isOpen: false }
+            ] } },
+            { type: "RouteBlock", props: { title: "Entrance to Main", steps: [
+              { instruction: "Enter through Gate B", detail: "Start" },
+              { instruction: "Follow the green signs", detail: "2 min" },
+              { instruction: "Main stage is ahead", detail: "4 min" }
+            ] } },
+            { type: "HuntBlock", props: { id: "signal-trail", title: "Signal trail", subtitle: "Collect three sample venue stamps", requiredCount: 3, completedCount: 1, stops: [
+              { title: "Gate B", completed: true },
+              { title: "Main stage", completed: false },
+              { title: "Food court", completed: false }
+            ], reward: { title: "Event patch" } } }
+          ]
+        },
+        {
+          id: "map",
+          title: "Map",
+          blocks: [
+            { type: "MapBlock", props: { title: "Venue locations", pins: [
+              { label: "Main stage", lat: 6.4281, lng: 3.4219 },
+              { label: "Hall B", lat: 6.4290, lng: 3.4235 },
+              { label: "Food court", lat: 6.4275, lng: 3.4228 }
+            ] } }
+          ]
+        },
+        {
+          id: "pass",
+          title: "Pass",
+          blocks: [
+            { type: "PassBlock", props: { eventName: "Signal Field Day", title: "Event pass" } }
+          ]
+        },
+        {
+          id: "moments",
+          title: "Moments",
+          blocks: [
+            { type: "MomentsBlock", props: { title: "Crew moments" } },
+            { type: "MediaBlock", props: { imageURL: "", caption: "Bundled vector fallback for offline media" } }
+          ]
+        }
+      ]
+    };
+
+    const connectorExample = {
+      id: "connector-result-demo",
+      slug: "connector-result",
+      version: 1,
+      sample: true,
+      theme: { primary: "#f7c948", accent: "#31d07f", background: "#0d110f", text: "#f5f8f5" },
+      screens: [{
+        id: "result",
+        title: "Result",
+        blocks: [
+          { type: "RichTextBlock", props: { markdown: "# Open bounty\nCreate an original 5–15 second sound for a sample drop." } },
+          { type: "ScheduleBlock", props: { title: "Details", items: [
+            { time: "50", title: "Stars", stage: "Reward" },
+            { time: "SEP 24", title: "Closes", stage: "Deadline" }
+          ] } },
+          { type: "SponsorBlock", props: { name: "HEMII", initials: "HM", tier: "Connector response", offer: "Open the source record to review requirements." } }
+        ]
+      }]
+    };
+
+    const minimalExample = {
+      id: "hello-blocks",
+      slug: "hello-blocks",
+      version: 1,
+      sample: true,
+      theme: { accent: "#43e391", background: "#0c100d", text: "#f5f8f5" },
+      screens: [{ id: "home", title: "Hello", blocks: [
+        { type: "RichTextBlock", props: { markdown: "# Hello, blocks\nStart with one screen. Add more blocks from the catalog below the editor." } }
+      ] }]
+    };
+
+    const examples = { full: fullExample, connector: connectorExample, minimal: minimalExample };
+    const editor = document.getElementById("jsonEditor");
+    const device = document.getElementById("device");
+    const status = document.getElementById("status");
+    const errorText = document.getElementById("errorText");
+    const cursorText = document.getElementById("cursorText");
+    const blockCount = document.getElementById("blockCount");
+    const exampleSelect = document.getElementById("exampleSelect");
+    const toast = document.getElementById("toast");
+    let activeScreenId = "live";
+    let parseTimer;
+    let currentExample = "full";
+
+    function clone(value) { return JSON.parse(JSON.stringify(value)); }
+    function pretty(value) { return JSON.stringify(value, null, 2); }
+    function esc(value = "") {
+      return String(value).replace(/[&<>'"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[ch]));
+    }
+    function safeColor(value, fallback) { return /^#[0-9a-f]{6}$/i.test(value || "") ? value : fallback; }
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 1600);
+    }
+    function validate(doc) {
+      const errors = [];
+      if (!doc || typeof doc !== "object" || Array.isArray(doc)) errors.push("Root must be an object");
+      if (!doc.id) errors.push("Missing id");
+      if (!doc.slug) errors.push("Missing slug");
+      if (!Number.isInteger(doc.version)) errors.push("version must be an integer");
+      if (!Array.isArray(doc.screens)) errors.push("screens must be an array");
+      else doc.screens.forEach((screen, index) => {
+        if (!screen.id) errors.push(`screens[${index}] is missing id`);
+        if (!Array.isArray(screen.blocks)) errors.push(`screens[${index}].blocks must be an array`);
+        else screen.blocks.forEach((block, blockIndex) => {
+          if (!block.type) errors.push(`screens[${index}].blocks[${blockIndex}] is missing type`);
+          if (block.props !== undefined && (typeof block.props !== "object" || Array.isArray(block.props))) errors.push(`${block.type || "block"}.props must be an object`);
+        });
+      });
+      return errors;
+    }
+
+    function markdown(text) {
+      const source = esc(text || "");
+      const lines = source.split("\n");
+      let html = "";
+      let inList = false;
+      const inline = line => line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<code>$1</code>");
+      for (const line of lines) {
+        if (line.startsWith("- ")) {
+          if (!inList) { html += "<ul>"; inList = true; }
+          html += `<li>${inline(line.slice(2))}</li>`;
+          continue;
+        }
+        if (inList) { html += "</ul>"; inList = false; }
+        if (line.startsWith("# ")) html += `<h1>${inline(line.slice(2))}</h1>`;
+        else if (line.startsWith("## ")) html += `<h2>${inline(line.slice(3))}</h2>`;
+        else if (line.trim()) html += `<p>${inline(line)}</p>`;
+      }
+      if (inList) html += "</ul>";
+      return html;
+    }
+
+    function titleBlock(label, title, extra = "") {
+      return `<div class="channel-head"><div class="icon-box">${esc(label)}</div><div><h3>${esc(title)}</h3>${extra}</div></div>`;
+    }
+
+    function renderBlock(block, doc) {
+      const p = block.props || {};
+      switch (block.type) {
+        case "RichTextBlock":
+          return `<section class="block rich-text"><div class="block-inner">${markdown(p.markdown)}</div></section>`;
+        case "MediaBlock":
+          return `<figure class="block"><div class="media-art" role="img" aria-label="Abstract offline signal visualization">
+            <svg viewBox="0 0 640 360" aria-hidden="true" focusable="false">
+              <rect width="640" height="360" fill="#0c1510"/>
+              <circle cx="320" cy="180" r="52" fill="none" stroke="var(--program-accent)" stroke-width="4" opacity=".92"/>
+              <circle cx="320" cy="180" r="104" fill="none" stroke="var(--program-accent)" stroke-width="2" opacity=".42"/>
+              <circle cx="320" cy="180" r="158" fill="none" stroke="var(--program-accent)" stroke-width="1" opacity=".22"/>
+              <circle cx="320" cy="180" r="9" fill="var(--program-primary)"/>
+              <circle cx="228" cy="143" r="7" fill="var(--program-accent)"/>
+              <circle cx="410" cy="220" r="7" fill="var(--program-accent)"/>
+              <circle cx="355" cy="80" r="5" fill="#fff" opacity=".65"/>
+              <path d="M228 143 L320 180 L410 220 M320 180 L355 80" stroke="#fff" stroke-width="1" opacity=".22"/>
+              <text x="28" y="322" fill="#fff" opacity=".58" font-size="15" font-family="IBM Plex Mono, monospace">MESH SIGNAL / BUNDLED VECTOR</text>
+            </svg>
+          </div><figcaption class="media-caption">${esc(p.caption || "Media")}</figcaption></figure>`;
+        case "ScheduleBlock": {
+          const items = Array.isArray(p.items) ? [...p.items].sort((a,b) => String(a.time).localeCompare(String(b.time))) : [];
+          return `<section class="block"><div class="block-inner"><span class="block-label">SCHEDULE</span><h3>${esc(p.title || "Schedule")}</h3><div>${items.map(item => `<div class="schedule-row"><time class="schedule-time">${esc(item.time)}</time><div class="schedule-info"><strong>${esc(item.title)}</strong><span>${esc(item.stage || "")}</span></div></div>`).join("")}</div></div></section>`;
+        }
+        case "MapBlock": {
+          const pins = Array.isArray(p.pins) ? p.pins : [];
+          return `<section class="block"><div class="block-inner"><span class="block-label">MAP FALLBACK</span><h3>${esc(p.title || "Locations")}</h3><div class="pin-list">${pins.map(pin => `<div class="pin-row"><span class="pin-dot"></span><b>${esc(pin.label)}</b><small>${Number(pin.lat).toFixed(3)}, ${Number(pin.lng).toFixed(3)}</small></div>`).join("")}</div><div class="fallback-note">The host can replace this accessible location list with its native map view.</div></div></section>`;
+        }
+        case "CrowdDensityBlock": {
+          const zones = Array.isArray(p.zones) ? p.zones : [];
+          return `<section class="block"><div class="block-inner"><span class="block-label">LIVE DENSITY · SAMPLE</span><h3>${esc(p.title || "Crowd density")}</h3><div class="density-grid">${zones.map(zone => {
+            const ratio = Math.max(0, Math.min(1, Number(zone.count || 0) / Math.max(1, Number(zone.capacity || 1))));
+            const heat = ratio > .8 ? "#ff806f" : ratio > .5 ? "#f7c948" : "var(--program-accent)";
+            const label = ratio > .8 ? "Packed" : ratio > .5 ? "Busy" : "Open";
+            return `<div class="density-cell" style="--heat:${heat}"><b>${esc(zone.count ?? 0)}</b><span>${esc(zone.name)} · ${label}</span></div>`;
+          }).join("")}</div></div></section>`;
+        }
+        case "VenueListBlock": {
+          const venues = Array.isArray(p.venues) ? p.venues : [];
+          return `<section class="block"><div class="block-inner"><span class="block-label">VENUE LIST</span><h3>${esc(p.title || "Venues")}</h3><div class="venue-list">${venues.map(v => `<div class="venue-row"><div class="venue-main"><b>${esc(v.name)}</b><small>${esc(v.floor || "")} · ${esc(v.hours || "")}</small></div><span class="state ${v.isOpen === false ? "closed" : ""}">${v.isOpen === false ? "CLOSED" : "OPEN"}</span></div>`).join("")}</div></div></section>`;
+        }
+        case "RouteBlock": {
+          const steps = Array.isArray(p.steps) ? p.steps : [];
+          return `<section class="block"><div class="block-inner"><span class="block-label">ROUTE</span><h3>${esc(p.title || "Directions")}</h3><div class="route">${steps.map(step => `<div class="route-step"><span class="route-node"></span><div><b>${esc(step.instruction)}</b><small>${esc(step.detail || "")}</small></div></div>`).join("")}</div></div></section>`;
+        }
+        case "SponsorBlock":
+          return `<section class="block sponsor"><div class="block-inner"><div class="sponsor-head"><div class="sponsor-mark">${esc(p.initials || String(p.name || "SP").slice(0,2).toUpperCase())}</div><div class="sponsor-copy"><small>SPONSORED · ${esc(p.tier || "Partner")}</small><h3>${esc(p.name || "Sponsor")}</h3></div></div>${p.offer ? `<div class="offer">${esc(p.offer)}</div>` : ""}</div></section>`;
+        case "RaffleBlock":
+          return `<section class="block raffle"><div class="block-inner"><div class="raffle-head"><span class="raffle-live">${p.isLive ? "LIVE" : "UPCOMING"}</span><span class="raffle-count">${esc(p.entries || 0)} entered</span></div><h3 style="margin-top:8px">${esc(p.title || "Giveaway")}</h3><p>${esc(p.prize || "Prize")}</p><div class="read-only-action">ENTRY HANDLED BY HOST APP</div></div></section>`;
+        case "HuntBlock": {
+          const stops = Array.isArray(p.stops) ? p.stops : [];
+          const required = Math.max(1, Number(p.requiredCount || stops.length || 1));
+          const completed = Math.max(0, Math.min(required, Number(p.completedCount ?? stops.filter(s => s.completed).length)));
+          return `<section class="block"><div class="block-inner"><div class="hunt-head">${titleBlock("H", p.title || "Hunt")}</div><p>${esc(p.subtitle || "")}</p><div class="hunt-progress">${Array.from({length: required}, (_,i) => `<i class="${i < completed ? "done" : ""}"></i>`).join("")}</div>${stops.map((stop,i) => `<div class="hunt-stop ${stop.completed ? "done" : ""}"><span class="stamp">${stop.completed ? "✓" : i+1}</span><span>${esc(stop.title)}</span></div>`).join("")}</div></section>`;
+        }
+        case "ChannelBlock": {
+          const channel = doc.runtime?.channels?.[p.channelId] || [];
+          const items = channel.slice(0, p.previewCount || 3);
+          return `<section class="block"><div class="block-inner">${titleBlock("CH", p.title || "Channel", `<span class="verified">VERIFIED</span>`)}<div>${items.length ? items.map(item => `<article class="announcement"><time>${esc(item.time || "NOW")}</time><p>${esc(item.text)}</p></article>`).join("") : `<p>Channel data is supplied by the host runtime.</p>`}</div></div></section>`;
+        }
+        case "PassBlock": {
+          const pass = (doc.runtime?.passes || []).find(item => !p.eventName || item.eventName === p.eventName);
+          if (!pass) return `<section class="block"><div class="block-inner"><span class="block-label">PASS</span><h3>${esc(p.title || "Event pass")}</h3><div class="empty-state" style="margin-top:12px">Pass data is supplied by the host runtime.</div></div></section>`;
+          return `<section class="block pass"><div class="pass-card"><div class="pass-head"><span class="block-label">${esc(p.title || "EVENT PASS")}</span>${pass.verified ? `<span class="verified">VERIFIED</span>` : ""}</div><h2 class="pass-event">${esc(pass.eventName)}</h2><div class="pass-fields"><div><small>HOLDER</small><b>${esc(pass.holder)}</b></div><div><small>TIER</small><b>${esc(pass.tier)}</b></div><div><small>SCAN PAYLOAD</small><b>${esc(pass.code)}</b></div><div><small>STATUS</small><b>${pass.verified ? "Trusted issuer" : "Unverified"}</b></div></div></div></section>`;
+        }
+        case "MomentsBlock": {
+          const moments = doc.runtime?.moments || [];
+          return `<section class="block"><div class="block-inner"><span class="block-label">FRIENDS-ONLY · SAMPLE</span><h3>${esc(p.title || "Moments")}</h3>${moments.length ? `<div class="moments-grid">${moments.map(moment => `<div class="moment" style="--moment:${safeColor(moment.color, "#315d47")}"><b>${esc(moment.sender)}</b><small>${esc(moment.caption)}</small></div>`).join("")}</div>` : `<div class="empty-state" style="margin-top:12px">Moments are supplied by the host runtime.</div>`}</div></section>`;
+        }
+        default:
+          return "";
+      }
+    }
+
+    function render(doc) {
+      const errors = validate(doc);
+      if (errors.length) {
+        status.textContent = `${errors.length} schema issue${errors.length === 1 ? "" : "s"}`;
+        status.className = "status invalid";
+        errorText.textContent = errors[0];
+        device.innerHTML = `<div class="device-bar"><span>PREVIEW</span><span>SCHEMA ERROR</span></div><div class="program-body" style="padding-top:20px"><div class="error-card">${esc(errors.join("\n"))}</div></div>`;
+        blockCount.textContent = "0 blocks";
+        return;
+      }
+
+      status.textContent = "Valid document";
+      status.className = "status valid";
+      errorText.textContent = "Live preview enabled";
+      const total = doc.screens.reduce((sum, screen) => sum + screen.blocks.length, 0);
+      blockCount.textContent = `${total} block${total === 1 ? "" : "s"}`;
+
+      const screenIds = doc.screens.map(s => s.id);
+      if (!screenIds.includes(activeScreenId)) activeScreenId = doc.screens[0]?.id;
+      const screen = doc.screens.find(s => s.id === activeScreenId) || doc.screens[0];
+      const theme = doc.theme || {};
+      const accent = safeColor(theme.accent, "#43e391");
+      const primary = safeColor(theme.primary, "#ffd84a");
+      const background = safeColor(theme.background, "#0b100d");
+      const text = safeColor(theme.text, "#f5f8f5");
+      device.style.setProperty("--program-accent", accent);
+      device.style.setProperty("--program-primary", primary);
+      device.style.setProperty("--program-bg", background);
+      device.style.setProperty("--program-text", text);
+
+      const tabs = Array.isArray(doc.tabBar) && doc.tabBar.length ? doc.tabBar : doc.screens.map(s => ({ screenId: s.id, title: s.title || s.id }));
+      const unknown = screen.blocks.filter(b => !BLOCK_TYPES.includes(b.type)).length;
+      device.innerHTML = `
+        <div class="device-bar"><div class="device-dots"><i></i><i></i><i></i></div><span>${doc.sample ? "SAMPLE PROGRAM" : "MINI-PROGRAM"} · v${esc(doc.version)}</span></div>
+        <header class="program-head"><p class="program-kicker">${esc(doc.slug).toUpperCase()}</p><h2 class="program-title">${esc(screen.title || "Untitled screen")}</h2><p class="program-meta">${screen.blocks.length} blocks${unknown ? ` · ${unknown} unknown skipped` : ""}</p></header>
+        <div class="program-body">${screen.blocks.map(block => renderBlock(block, doc)).join("") || `<div class="empty-state">This screen has no blocks yet.</div>`}</div>
+        ${tabs.length > 1 ? `<nav class="program-nav" aria-label="Program screens">${tabs.map(tab => `<button class="screen-tab ${tab.screenId === screen.id ? "active" : ""}" type="button" data-screen="${esc(tab.screenId)}"><span class="tab-mark"></span>${esc(tab.title)}</button>`).join("")}</nav>` : ""}`;
+      device.querySelectorAll("[data-screen]").forEach(button => button.addEventListener("click", () => {
+        activeScreenId = button.dataset.screen;
+        render(doc);
+      }));
+    }
+
+    function parseAndRender() {
+      try {
+        const doc = JSON.parse(editor.value);
+        render(doc);
+      } catch (error) {
+        status.textContent = "Invalid JSON";
+        status.className = "status invalid";
+        const clean = String(error.message || error).replace(/^JSON\.parse: /, "");
+        errorText.textContent = clean;
+        device.innerHTML = `<div class="device-bar"><span>PREVIEW</span><span>PARSE ERROR</span></div><div class="program-body" style="padding-top:20px"><div class="error-card">${esc(clean)}\n\nFix the JSON to restore the live preview.</div></div>`;
+        blockCount.textContent = "0 blocks";
+      }
+    }
+
+    function loadExample(name, notify = false) {
+      currentExample = name;
+      activeScreenId = examples[name].screens[0]?.id;
+      editor.value = pretty(clone(examples[name]));
+      updateCursor();
+      parseAndRender();
+      if (notify) showToast("Example loaded");
+    }
+
+    function updateCursor() {
+      const before = editor.value.slice(0, editor.selectionStart);
+      const lines = before.split("\n");
+      cursorText.textContent = `Ln ${lines.length}, Col ${lines[lines.length - 1].length + 1}`;
+    }
+
+    async function copyText() {
+      try {
+        await navigator.clipboard.writeText(editor.value);
+      } catch (_) {
+        editor.focus();
+        editor.select();
+        document.execCommand("copy");
+      }
+      showToast("JSON copied");
+    }
+
+    function downloadJSON() {
+      let slug = "mini-program";
+      try { slug = JSON.parse(editor.value).slug || slug; } catch (_) {}
+      const blob = new Blob([editor.value], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${slug}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast("JSON downloaded");
+    }
+
+    function insertBlock(type) {
+      try {
+        const doc = JSON.parse(editor.value);
+        const target = doc.screens.find(s => s.id === activeScreenId) || doc.screens[0];
+        if (!target) throw new Error("Add a screen before inserting blocks");
+        if (!Array.isArray(target.blocks)) target.blocks = [];
+        target.blocks.push(clone(blockDefaults[type]));
+        editor.value = pretty(doc);
+        parseAndRender();
+        showToast(`${type} inserted`);
+      } catch (error) {
+        showToast(error.message || "Fix the JSON first");
+      }
+    }
+
+    const catalog = document.getElementById("catalogGrid");
+    BLOCK_TYPES.forEach(type => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "catalog-chip";
+      button.textContent = type.replace("Block", "");
+      button.title = `Insert ${type}`;
+      button.addEventListener("click", () => insertBlock(type));
+      catalog.appendChild(button);
+    });
+
+    editor.addEventListener("input", () => {
+      clearTimeout(parseTimer);
+      parseAndRender();
+      updateCursor();
+    });
+    editor.addEventListener("click", updateCursor);
+    editor.addEventListener("keyup", updateCursor);
+    editor.addEventListener("keydown", event => {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        editor.value = editor.value.slice(0, start) + "  " + editor.value.slice(end);
+        editor.selectionStart = editor.selectionEnd = start + 2;
+        editor.dispatchEvent(new Event("input"));
+      }
+    });
+
+    exampleSelect.addEventListener("change", event => loadExample(event.target.value, true));
+    document.getElementById("resetBtn").addEventListener("click", () => loadExample(currentExample, true));
+    document.getElementById("formatBtn").addEventListener("click", () => {
+      try { editor.value = pretty(JSON.parse(editor.value)); parseAndRender(); showToast("JSON formatted"); }
+      catch (_) { showToast("Fix the JSON before formatting"); }
+    });
+    document.getElementById("copyBtn").addEventListener("click", copyText);
+    document.getElementById("downloadBtn").addEventListener("click", downloadJSON);
+
+    document.querySelectorAll("[data-mobile-pane]").forEach(button => button.addEventListener("click", () => {
+      const pane = button.dataset.mobilePane;
+      document.querySelectorAll("[data-mobile-pane]").forEach(b => b.classList.toggle("active", b === button));
+      document.querySelectorAll("[data-pane]").forEach(p => p.classList.toggle("mobile-active", p.dataset.pane === pane));
+    }));
+
+    loadExample("full");
+  </script>
+</body>
+</html>
